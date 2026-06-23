@@ -10,6 +10,7 @@ const DIE_OPPOSITE_SUM = 7;
 const CARD_ROW_SIZE = 4;
 const CARDS_PER_TURN = 2;
 const ACTION_ARROW = "→";
+const UNKNOWN_DIE_VALUE = "?";
 
 const ui = {
   setupView: document.getElementById("setup-view"),
@@ -173,9 +174,12 @@ function buildTurnActions(cardA, cardB) {
 }
 
 function orderedTurnActions(actions, firstActionKey) {
+  if (actions.length !== CARDS_PER_TURN) {
+    throw new Error(`Expected ${CARDS_PER_TURN} turn actions, received ${actions.length}.`);
+  }
   const firstAction = actions.find((action) => action.key === firstActionKey);
   if (!firstAction) {
-    throw new Error("Invalid turn action order.");
+    throw new Error(`Invalid action key: expected "first" or "second", received "${firstActionKey}".`);
   }
   const secondAction = actions.find((action) => action.key !== firstAction.key);
   if (!secondAction) {
@@ -393,7 +397,7 @@ function render() {
       const isFirst = turnAction.key === state.selectedFirstActionKey;
       const isSecond = turnAction.key === secondKey;
       const dieIndex = findDieIndex(currentPlayer, turnAction.targetColor);
-      const dieValue = dieIndex >= 0 ? currentPlayer.dice[dieIndex].value : "?";
+      const dieValue = dieIndex >= 0 ? currentPlayer.dice[dieIndex].value : UNKNOWN_DIE_VALUE;
 
       const item = document.createElement("div");
       item.className = `turn-plan-item${isFirst ? " selected-first" : ""}`;
