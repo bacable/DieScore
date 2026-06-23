@@ -104,6 +104,9 @@ function findDieIndex(player, color) {
   return player.dice.findIndex((die) => die.color === color);
 }
 
+// role: "self" (current player applies card to their own die) or
+//        "others" (all other players apply card to their own die of that color).
+// For +2/-2 the role also determines the delta direction (+2 for self, -2 for others).
 function applyAction(player, color, action, role) {
   const dieIndex = findDieIndex(player, color);
   if (dieIndex < 0) return;
@@ -204,7 +207,9 @@ function maybeRunAiTurn() {
     state.selectedCards = picks.map((card) => card.id);
     state.selfCardId = picks[0].id;
     render();
-    runTurn(picks[0], picks[1]);
+    const selfCard = picks.find((c) => c.id === state.selfCardId);
+    const othersCard = picks.find((c) => c.id !== state.selfCardId);
+    runTurn(selfCard, othersCard);
   }, AI_THINK_DELAY_MS);
 }
 
