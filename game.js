@@ -214,7 +214,7 @@ function renderPlayerConfig() {
     human.textContent = "Human";
     const ai = document.createElement("option");
     ai.value = "ai";
-    ai.textContent = "Computer A.I.";
+    ai.textContent = "Computer AI";
     select.append(human, ai);
     label.append(select);
     wrapper.append(label);

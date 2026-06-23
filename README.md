@@ -1,10 +1,10 @@
 # DieScore
 
-Wordle-inspired mobile-friendly dark-mode dice strategy game for 3–6 players (human and/or computer A.I.).
+Wordle-inspired mobile-friendly dark-mode dice strategy game for 3–6 players (human and/or computer AI).
 
 ## Run
 
-Open `/home/runner/work/DieScore/DieScore/index.html` in a browser.
+Open `index.html` in a browser.
 
 ## Game summary
 
