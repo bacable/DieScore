@@ -10,7 +10,7 @@ export interface Player {
   name: string;
   isAI: boolean;
   turnsTaken: number;
-  trophies: { bronze: number; silver: number; gold: number };
+  trophies: { bronze: number; silver: number; gold: number; yellow: number };
   dice: Die[];
 }
 
@@ -27,9 +27,13 @@ export function scoreForPlayer(player: Player): number {
   return Number(player.dice.map((die) => die.value).join(""));
 }
 
-export function trophyPoints(player: Player): number {
+export function trophyPoints(player: Player, playerCount: number): number {
+  if (playerCount >= 5) {
+    return player.trophies.yellow + player.trophies.bronze * 2 + player.trophies.silver * 3 + player.trophies.gold * 4;
+  }
   return player.trophies.bronze + player.trophies.silver * 2 + player.trophies.gold * 3;
 }
+
 
 export function generateDeck(colors: string[], multiplier: number): Card[] {
   const deck: Card[] = [];

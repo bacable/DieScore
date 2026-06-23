@@ -18,6 +18,7 @@ const ui = {
   playerCount: document.getElementById("player-count"),
   diceColorSet: document.getElementById("dice-color-set"),
   deckMultiplier: document.getElementById("deck-multiplier"),
+  trophySupply: document.getElementById("trophy-supply"),
   playerConfig: document.getElementById("player-config"),
   startGame: document.getElementById("start-game"),
   turnLabel: document.getElementById("turn-label"),
@@ -64,7 +65,7 @@ function createPlayer(id, isAI, colors) {
     name: `Player ${id + 1}`,
     isAI,
     turnsTaken: 0,
-    trophies: { bronze: 0, silver: 0, gold: 0 },
+    trophies: { bronze: 0, silver: 0, gold: 0, yellow: 0 },
     dice: colors.map((color) => ({ color, value: randomDieValue() })),
   };
 }
@@ -89,6 +90,10 @@ function scoreForPlayer(player) {
 }
 
 function trophyPoints(player) {
+  const has5Plus = state.players.length >= 5;
+  if (has5Plus) {
+    return player.trophies.yellow + player.trophies.bronze * 2 + player.trophies.silver * 3 + player.trophies.gold * 4;
+  }
   return player.trophies.bronze + player.trophies.silver * 2 + player.trophies.gold * 3;
 }
 
@@ -145,25 +150,54 @@ function applyAction(player, color, action, role) {
 function awardTrophy(player) {
   const ranking = rankingByScore(state.players);
   const position = ranking.findIndex((item) => item.id === player.id) + 1;
-  if (position === 1) player.trophies.gold += 1;
-  if (position === 2) player.trophies.silver += 1;
-  if (position === 3) player.trophies.bronze += 1;
+  const supply = state.trophySupply;
+  const has5Plus = state.players.length >= 5;
+
+  let tiers;
+  if (has5Plus) {
+    if (position === 1) tiers = ["gold", "silver", "bronze", "yellow"];
+    else if (position === 2) tiers = ["silver", "bronze", "yellow"];
+    else if (position === 3) tiers = ["bronze", "yellow"];
+    else if (position === 4) tiers = ["yellow"];
+    else return;
+  } else {
+    if (position === 1) tiers = ["gold", "silver", "bronze"];
+    else if (position === 2) tiers = ["silver", "bronze"];
+    else if (position === 3) tiers = ["bronze"];
+    else return;
+  }
+
+  for (const tier of tiers) {
+    if (supply[tier] > 0) {
+      supply[tier] -= 1;
+      player.trophies[tier] += 1;
+      return;
+    }
+  }
 }
 
 function removeSelectedCards() {
+  const removed = state.cardRow.filter((card) => state.selectedCards.includes(card.id));
+  state.discard.push(...removed);
   state.cardRow = state.cardRow.filter((card) => !state.selectedCards.includes(card.id));
   state.selectedCards = [];
   state.selfCardId = null;
 }
 
 function refillCardRow() {
-  while (state.cardRow.length < CARD_ROW_SIZE && state.deck.length > 0) {
+  while (state.cardRow.length < CARD_ROW_SIZE) {
+    if (state.deck.length === 0) {
+      if (state.discard.length === 0) break;
+      state.deck = shuffle(state.discard);
+      state.discard = [];
+    }
     state.cardRow.push(state.deck.pop());
   }
 }
 
 function gameIsOver() {
-  return state.players.every((player) => player.turnsTaken >= state.turnsPerPlayer);
+  const s = state.trophySupply;
+  return s.gold === 0 && s.silver === 0 && s.bronze === 0 && s.yellow === 0;
 }
 
 function runTurn(selfCard, othersCard) {
@@ -240,17 +274,20 @@ function startGame() {
   const playerCount = Number(ui.playerCount.value);
   const colors = COLOR_SETS[ui.diceColorSet.value] || DEFAULT_COLORS;
   const multiplier = Number(ui.deckMultiplier.value);
+  const trophyCount = Number(ui.trophySupply.value);
   const typeSelects = [...ui.playerConfig.querySelectorAll("select[data-player-type]")];
 
-  const rawDeck = generateDeck(colors, multiplier);
-  const minCardsForOneRound = CARD_ROW_SIZE + playerCount * CARDS_PER_TURN;
-  if (rawDeck.length < minCardsForOneRound) {
+  const deck = generateDeck(colors, multiplier);
+  if (deck.length < CARD_ROW_SIZE) {
     ui.message.textContent = "Not enough cards for the selected options.";
     return;
   }
-  const turnsPerPlayer = Math.floor((rawDeck.length - CARD_ROW_SIZE) / (playerCount * CARDS_PER_TURN));
-  const totalCardsNeeded = CARD_ROW_SIZE + turnsPerPlayer * playerCount * CARDS_PER_TURN;
-  const deck = rawDeck.slice(0, totalCardsNeeded);
+  const trophySupply = {
+    gold: trophyCount,
+    silver: trophyCount,
+    bronze: trophyCount,
+    yellow: playerCount >= 5 ? trophyCount : 0,
+  };
 
   const players = new Array(playerCount).fill(null).map((_, index) => {
     const isAI = typeSelects[index] ? typeSelects[index].value === "ai" : false;
@@ -261,7 +298,8 @@ function startGame() {
     colors,
     players,
     deck,
-    turnsPerPlayer,
+    discard: [],
+    trophySupply,
     currentPlayerIndex: 0,
     cardRow: [],
     selectedCards: [],
@@ -289,11 +327,13 @@ function winningText() {
 function render() {
   const currentPlayer = state.players[state.currentPlayerIndex];
   const rank = rankingByScore(state.players);
-  const turnNumber = state.players.reduce((sum, player) => sum + player.turnsTaken, 0) + 1;
-  const totalTurns = state.turnsPerPlayer * state.players.length;
+  const supply = state.trophySupply;
+  const has5Plus = state.players.length >= 5;
 
   ui.turnLabel.textContent = state.finished ? "Game Over" : `Turn: ${currentPlayer.name}`;
-  ui.turnMeta.textContent = `${Math.min(turnNumber, totalTurns)} / ${totalTurns}`;
+  let supplyText = `Supply: 🥇 ${supply.gold} 🥈 ${supply.silver} 🥉 ${supply.bronze}`;
+  if (has5Plus) supplyText += ` 🏅 ${supply.yellow}`;
+  ui.turnMeta.textContent = supplyText;
 
   ui.ranking.innerHTML = "";
   rank.forEach((player, index) => {
@@ -314,7 +354,10 @@ function render() {
       diceRow.append(dieElement);
     });
     const stats = document.createElement("small");
-    stats.textContent = `Score: ${score.toLocaleString()} • Trophies: 🥇 ${player.trophies.gold} 🥈 ${player.trophies.silver} 🥉 ${player.trophies.bronze} • Points: ${trophyPoints(player)}`;
+    let statsText = `Score: ${score.toLocaleString()} • Trophies: 🥇 ${player.trophies.gold} 🥈 ${player.trophies.silver} 🥉 ${player.trophies.bronze}`;
+    if (has5Plus) statsText += ` 🏅 ${player.trophies.yellow}`;
+    statsText += ` • Points: ${trophyPoints(player)}`;
+    stats.textContent = statsText;
     row.append(title, diceRow, stats);
     ui.ranking.append(row);
   });
