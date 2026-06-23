@@ -1,5 +1,9 @@
 const ACTIONS = ["Slide Right", "Slide Left", "Flip", "Reroll", "+1/-1"];
 const DEFAULT_COLORS = ["red", "yellow", "black", "white", "gray", "blue"];
+const LIGHT_DIE_TEXT_COLOR = "#111";
+const DARK_DIE_TEXT_COLOR = "#f7f9ff";
+const MAX_COLOR_NAME_LENGTH = 20;
+const AI_THINK_DELAY_MS = 600;
 
 const ui = {
   setupView: document.getElementById("setup-view"),
@@ -51,7 +55,7 @@ function parseColors(input) {
 }
 
 function normalizeColorToken(value) {
-  if (/^[a-z]{1,20}$/i.test(value)) return value;
+  if (new RegExp(`^[a-z]{1,${MAX_COLOR_NAME_LENGTH}}$`, "i").test(value)) return value;
   if (/^#[0-9a-f]{3,8}$/i.test(value)) return value;
   return "";
 }
@@ -202,7 +206,7 @@ function maybeRunAiTurn() {
     state.selectedCards = picks.map((card) => card.id);
     render();
     runTurn(picks[0], picks[1]);
-  }, 600);
+  }, AI_THINK_DELAY_MS);
 }
 
 function renderPlayerConfig() {
@@ -300,7 +304,7 @@ function render() {
       const dieElement = document.createElement("span");
       dieElement.className = "die";
       dieElement.style.backgroundColor = die.color;
-      dieElement.style.color = die.color === "white" || die.color === "yellow" ? "#111" : "#f7f9ff";
+      dieElement.style.color = die.color === "white" || die.color === "yellow" ? LIGHT_DIE_TEXT_COLOR : DARK_DIE_TEXT_COLOR;
       dieElement.textContent = String(die.value);
       diceRow.append(dieElement);
     });
@@ -319,7 +323,7 @@ function render() {
     const top = document.createElement("div");
     top.className = "card-top";
     top.style.backgroundColor = card.color;
-    top.style.color = card.color === "white" || card.color === "yellow" ? "#111" : "#f7f9ff";
+    top.style.color = card.color === "white" || card.color === "yellow" ? LIGHT_DIE_TEXT_COLOR : DARK_DIE_TEXT_COLOR;
     top.textContent = card.color.toUpperCase();
     const bottom = document.createElement("div");
     bottom.className = "card-bottom";
