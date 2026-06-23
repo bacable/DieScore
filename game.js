@@ -370,16 +370,16 @@ function render() {
 
   const picks = selectedCards();
   const turnActions = picks.length === CARDS_PER_TURN ? buildTurnActions(picks[0], picks[1]) : [];
-  if (turnActions.length === CARDS_PER_TURN && !isValidActionKey(state.selectedFirstActionKey, turnActions)) {
+  if (turnActions.length > 0 && !isValidActionKey(state.selectedFirstActionKey, turnActions)) {
     state.selectedFirstActionKey = null;
   }
 
   ui.turnPlan.innerHTML = "";
-  if (turnActions.length === CARDS_PER_TURN) {
+  if (turnActions.length > 0) {
     ui.turnPlan.classList.remove("hidden");
-    const secondAction =
-      state.selectedFirstActionKey && turnActions.find((action) => action.key !== state.selectedFirstActionKey);
-    const secondActionKey = secondAction ? secondAction.key : null;
+    const secondActionKey = state.selectedFirstActionKey
+      ? (turnActions.find((action) => action.key !== state.selectedFirstActionKey) || {}).key || null
+      : null;
     turnActions.forEach((turnAction) => {
       const isFirst = turnAction.key === state.selectedFirstActionKey;
       const isSecond = turnAction.key === secondActionKey;
