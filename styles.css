@@ -154,8 +154,12 @@ select,
   background: #131922;
 }
 
-.turn-plan-item.selected-first {
+.turn-plan-item.role-self {
   border-color: var(--accent);
+}
+
+.turn-plan-item.role-others {
+  border-color: #d4a017;
 }
 
 .turn-plan-top {

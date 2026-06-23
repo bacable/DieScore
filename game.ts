@@ -1,4 +1,4 @@
-export type ActionType = "Slide Right" | "Slide Left" | "Flip" | "Reroll" | "+1/-1";
+export type ActionType = "Slide Right" | "Slide Left" | "Flip" | "Reroll" | "+2/-2";
 
 export interface Die {
   color: string;
@@ -20,7 +20,7 @@ export interface Card {
   action: ActionType;
 }
 
-export const ACTIONS: ActionType[] = ["Slide Right", "Slide Left", "Flip", "Reroll", "+1/-1"];
+export const ACTIONS: ActionType[] = ["Slide Right", "Slide Left", "Flip", "Reroll", "+2/-2"];
 export const DEFAULT_COLORS = ["red", "yellow", "black", "white", "gray", "blue"];
 
 export function scoreForPlayer(player: Player): number {

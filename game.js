@@ -1,4 +1,4 @@
-const ACTIONS = ["Slide Right", "Slide Left", "Flip", "Reroll", "+1/-1"];
+const ACTIONS = ["Slide Right", "Slide Left", "Flip", "Reroll", "+2/-2"];
 const DEFAULT_COLORS = ["red", "yellow", "black", "white", "gray", "blue"];
 const COLOR_SETS = { standard: DEFAULT_COLORS };
 const LIGHT_DIE_TEXT_COLOR = "#111";
@@ -104,7 +104,7 @@ function findDieIndex(player, color) {
   return player.dice.findIndex((die) => die.color === color);
 }
 
-function applyAction(player, color, action) {
+function applyAction(player, color, action, role) {
   const dieIndex = findDieIndex(player, color);
   if (dieIndex < 0) return;
 
@@ -130,15 +130,12 @@ function applyAction(player, color, action) {
     return;
   }
 
-  if (action === "+1/-1") {
-    player.dice[dieIndex].value = Math.min(DIE_MAX_VALUE, player.dice[dieIndex].value + 1);
-    state.players.forEach((otherPlayer) => {
-      if (otherPlayer.id === player.id) return;
-      const otherDieIndex = findDieIndex(otherPlayer, color);
-      if (otherDieIndex >= 0) {
-        otherPlayer.dice[otherDieIndex].value = Math.max(DIE_MIN_VALUE, otherPlayer.dice[otherDieIndex].value - 1);
-      }
-    });
+  if (action === "+2/-2") {
+    if (role === "self") {
+      player.dice[dieIndex].value = Math.min(DIE_MAX_VALUE, player.dice[dieIndex].value + 2);
+    } else {
+      player.dice[dieIndex].value = Math.max(DIE_MIN_VALUE, player.dice[dieIndex].value - 2);
+    }
   }
 }
 
@@ -153,7 +150,7 @@ function awardTrophy(player) {
 function removeSelectedCards() {
   state.cardRow = state.cardRow.filter((card) => !state.selectedCards.includes(card.id));
   state.selectedCards = [];
-  state.selectedFirstActionKey = null;
+  state.selfCardId = null;
 }
 
 function refillCardRow() {
@@ -166,37 +163,12 @@ function gameIsOver() {
   return state.players.every((player) => player.turnsTaken >= state.turnsPerPlayer);
 }
 
-function buildTurnActions(cardA, cardB) {
-  return [
-    { key: "first", targetColor: cardA.color, action: cardB.action },
-    { key: "second", targetColor: cardB.color, action: cardA.action },
-  ];
-}
-
-function orderedTurnActions(actions, firstActionKey) {
-  if (actions.length !== CARDS_PER_TURN) {
-    throw new Error(`Expected ${CARDS_PER_TURN} turn actions, received ${actions.length}.`);
-  }
-  const firstAction = actions.find((action) => action.key === firstActionKey);
-  if (!firstAction) {
-    throw new Error(`Invalid action key: expected "first" or "second", received "${firstActionKey}".`);
-  }
-  const secondAction = actions.find((action) => action.key !== firstAction.key);
-  if (!secondAction) {
-    throw new Error("Missing second turn action.");
-  }
-  return [firstAction, secondAction];
-}
-
-function isValidActionKey(actionKey, actions) {
-  return actions.some((action) => action.key === actionKey);
-}
-
-function runTurn(cardA, cardB, firstActionKey) {
+function runTurn(selfCard, othersCard) {
   const player = state.players[state.currentPlayerIndex];
-  const actions = orderedTurnActions(buildTurnActions(cardA, cardB), firstActionKey);
-  actions.forEach((turnAction) => {
-    applyAction(player, turnAction.targetColor, turnAction.action);
+  applyAction(player, selfCard.color, selfCard.action, "self");
+  state.players.forEach((other) => {
+    if (other.id === player.id) return;
+    applyAction(other, othersCard.color, othersCard.action, "others");
   });
   removeSelectedCards();
   refillCardRow();
@@ -230,10 +202,9 @@ function maybeRunAiTurn() {
     if (state.finished) return;
     const picks = shuffle(state.cardRow).slice(0, CARDS_PER_TURN);
     state.selectedCards = picks.map((card) => card.id);
-    const turnActions = buildTurnActions(picks[0], picks[1]);
-    state.selectedFirstActionKey = shuffle(turnActions)[0].key;
+    state.selfCardId = picks[0].id;
     render();
-    runTurn(picks[0], picks[1], state.selectedFirstActionKey);
+    runTurn(picks[0], picks[1]);
   }, AI_THINK_DELAY_MS);
 }
 
@@ -289,7 +260,7 @@ function startGame() {
     currentPlayerIndex: 0,
     cardRow: [],
     selectedCards: [],
-    selectedFirstActionKey: null,
+    selfCardId: null,
     finished: false,
   };
 
@@ -365,7 +336,7 @@ function render() {
       } else if (state.selectedCards.length < CARDS_PER_TURN) {
         state.selectedCards.push(card.id);
       }
-      state.selectedFirstActionKey = null;
+      state.selfCardId = null;
       render();
     });
     ui.cardRow.append(button);
@@ -380,55 +351,49 @@ function render() {
   }
 
   const picks = selectedCards();
-  const turnActions = picks.length === CARDS_PER_TURN ? buildTurnActions(picks[0], picks[1]) : [];
-  if (turnActions.length > 0 && !isValidActionKey(state.selectedFirstActionKey, turnActions)) {
-    state.selectedFirstActionKey = null;
-  }
+  const hasBothCards = picks.length === CARDS_PER_TURN;
+  const selfCard = hasBothCards ? picks.find((c) => c.id === state.selfCardId) || null : null;
+  const othersCard = selfCard ? picks.find((c) => c.id !== state.selfCardId) || null : null;
 
   ui.turnPlan.innerHTML = "";
-  if (turnActions.length > 0) {
+  if (hasBothCards) {
     ui.turnPlan.classList.remove("hidden");
-    let secondKey = null;
-    if (state.selectedFirstActionKey) {
-      const secondAction = turnActions.find((action) => action.key !== state.selectedFirstActionKey);
-      secondKey = secondAction ? secondAction.key : null;
-    }
-    turnActions.forEach((turnAction) => {
-      const isFirst = turnAction.key === state.selectedFirstActionKey;
-      const isSecond = turnAction.key === secondKey;
-      const dieIndex = findDieIndex(currentPlayer, turnAction.targetColor);
+    picks.forEach((card) => {
+      const isSelf = selfCard && card.id === selfCard.id;
+      const isOthers = othersCard && card.id === othersCard.id;
+      const dieIndex = findDieIndex(currentPlayer, card.color);
       const dieValue = dieIndex >= 0 ? currentPlayer.dice[dieIndex].value : UNKNOWN_DIE_VALUE;
 
       const item = document.createElement("div");
-      item.className = `turn-plan-item${isFirst ? " selected-first" : ""}`;
+      item.className = `turn-plan-item${isSelf ? " role-self" : isOthers ? " role-others" : ""}`;
 
       const top = document.createElement("div");
       top.className = "turn-plan-top";
-      const orderLabel = document.createElement("strong");
-      if (isFirst) {
-        orderLabel.textContent = "1st Action";
-      } else if (isSecond) {
-        orderLabel.textContent = "2nd Action";
+      const roleLabel = document.createElement("strong");
+      if (isSelf) {
+        roleLabel.textContent = "For Me";
+      } else if (isOthers) {
+        roleLabel.textContent = "For Others";
       } else {
-        orderLabel.textContent = "Pick Order";
+        roleLabel.textContent = "Assign Role";
       }
-      top.append(orderLabel);
+      top.append(roleLabel);
 
       if (!currentPlayer.isAI) {
-        const chooseButton = document.createElement("button");
-        chooseButton.type = "button";
-        chooseButton.className = "button turn-plan-button";
-        chooseButton.textContent = isFirst ? "Selected First" : "Do This First";
-        chooseButton.addEventListener("click", () => {
-          state.selectedFirstActionKey = turnAction.key;
+        const selfButton = document.createElement("button");
+        selfButton.type = "button";
+        selfButton.className = "button turn-plan-button";
+        selfButton.textContent = isSelf ? "✓ For Me" : "Do This To Me";
+        selfButton.addEventListener("click", () => {
+          state.selfCardId = card.id;
           render();
         });
-        top.append(chooseButton);
+        top.append(selfButton);
       }
 
       const desc = document.createElement("div");
       desc.className = "turn-plan-desc";
-      desc.textContent = `${turnAction.targetColor.toUpperCase()} die ${dieValue} ${ACTION_ARROW} ${turnAction.action}`;
+      desc.textContent = `${card.color.toUpperCase()} die ${dieValue} ${ACTION_ARROW} ${card.action}`;
       item.append(top, desc);
       ui.turnPlan.append(item);
     });
@@ -436,16 +401,15 @@ function render() {
     ui.turnPlan.classList.add("hidden");
   }
 
-  ui.confirmSelection.disabled =
-    picks.length !== CARDS_PER_TURN || currentPlayer.isAI || !state.selectedFirstActionKey;
+  ui.confirmSelection.disabled = !hasBothCards || currentPlayer.isAI || !state.selfCardId;
 
   if (!currentPlayer.isAI) {
-    if (picks.length !== CARDS_PER_TURN) {
+    if (!hasBothCards) {
       ui.message.textContent = `${currentPlayer.name}: pick two cards.`;
-    } else if (!state.selectedFirstActionKey) {
-      ui.message.textContent = `${currentPlayer.name}: choose which action happens first.`;
+    } else if (!state.selfCardId) {
+      ui.message.textContent = `${currentPlayer.name}: choose which card applies to you.`;
     } else {
-      ui.message.textContent = `${currentPlayer.name}: confirm to apply this order.`;
+      ui.message.textContent = `${currentPlayer.name}: confirm to apply effects.`;
     }
   }
 }
@@ -463,7 +427,11 @@ ui.newGame.addEventListener("click", () => {
 
 ui.confirmSelection.addEventListener("click", () => {
   const picks = selectedCards();
-  if (picks.length === CARDS_PER_TURN && state.selectedFirstActionKey) {
-    runTurn(picks[0], picks[1], state.selectedFirstActionKey);
+  if (picks.length === CARDS_PER_TURN && state.selfCardId) {
+    const selfCard = picks.find((c) => c.id === state.selfCardId);
+    const othersCard = picks.find((c) => c.id !== state.selfCardId);
+    if (selfCard && othersCard) {
+      runTurn(selfCard, othersCard);
+    }
   }
 });
