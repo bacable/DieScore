@@ -1,5 +1,6 @@
 const ACTIONS = ["Slide Right", "Slide Left", "Flip", "Reroll", "+1/-1"];
 const DEFAULT_COLORS = ["red", "yellow", "black", "white", "gray", "blue"];
+// Extensible for future preset color-set options in setup.
 const COLOR_SETS = { standard: DEFAULT_COLORS };
 const LIGHT_DIE_TEXT_COLOR = "#111";
 const DARK_DIE_TEXT_COLOR = "#f7f9ff";
