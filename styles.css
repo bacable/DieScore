@@ -141,6 +141,42 @@ select,
   margin-bottom: 10px;
 }
 
+.turn-plan {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.turn-plan-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  background: #131922;
+}
+
+.turn-plan-item.selected-first {
+  border-color: var(--accent);
+}
+
+.turn-plan-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.turn-plan-button {
+  width: auto;
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+.turn-plan-desc {
+  margin-top: 6px;
+  font-size: 0.9rem;
+}
+
 .card {
   border: 1px solid var(--border);
   border-radius: 8px;

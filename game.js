@@ -22,6 +22,7 @@ const ui = {
   turnMeta: document.getElementById("turn-meta"),
   ranking: document.getElementById("ranking"),
   cardRow: document.getElementById("card-row"),
+  turnPlan: document.getElementById("turn-plan"),
   confirmSelection: document.getElementById("confirm-selection"),
   message: document.getElementById("message"),
   newGame: document.getElementById("new-game"),
@@ -150,6 +151,7 @@ function awardTrophy(player) {
 function removeSelectedCards() {
   state.cardRow = state.cardRow.filter((card) => !state.selectedCards.includes(card.id));
   state.selectedCards = [];
+  state.selectedFirstActionKey = null;
 }
 
 function refillCardRow() {
@@ -162,10 +164,25 @@ function gameIsOver() {
   return state.players.every((player) => player.turnsTaken >= state.turnsPerPlayer);
 }
 
-function runTurn(cardA, cardB) {
+function buildTurnActions(cardA, cardB) {
+  return [
+    { key: "first", targetColor: cardA.color, action: cardB.action },
+    { key: "second", targetColor: cardB.color, action: cardA.action },
+  ];
+}
+
+function orderedTurnActions(actions, firstActionKey) {
+  const firstAction = actions.find((action) => action.key === firstActionKey) || actions[0];
+  const secondAction = actions.find((action) => action.key !== firstAction.key);
+  return secondAction ? [firstAction, secondAction] : [firstAction];
+}
+
+function runTurn(cardA, cardB, firstActionKey) {
   const player = state.players[state.currentPlayerIndex];
-  applyAction(player, cardA.color, cardB.action);
-  applyAction(player, cardB.color, cardA.action);
+  const actions = orderedTurnActions(buildTurnActions(cardA, cardB), firstActionKey);
+  actions.forEach((turnAction) => {
+    applyAction(player, turnAction.targetColor, turnAction.action);
+  });
   removeSelectedCards();
   refillCardRow();
   awardTrophy(player);
@@ -190,7 +207,6 @@ function maybeRunAiTurn() {
   if (state.finished) return;
   const currentPlayer = state.players[state.currentPlayerIndex];
   if (!currentPlayer.isAI) {
-    ui.message.textContent = `${currentPlayer.name}: pick two cards.`;
     return;
   }
   ui.message.textContent = `${currentPlayer.name} (AI) is thinking...`;
@@ -199,8 +215,10 @@ function maybeRunAiTurn() {
     if (state.finished) return;
     const picks = shuffle(state.cardRow).slice(0, CARDS_PER_TURN);
     state.selectedCards = picks.map((card) => card.id);
+    const turnActions = buildTurnActions(picks[0], picks[1]);
+    state.selectedFirstActionKey = shuffle(turnActions)[0].key;
     render();
-    runTurn(picks[0], picks[1]);
+    runTurn(picks[0], picks[1], state.selectedFirstActionKey);
   }, AI_THINK_DELAY_MS);
 }
 
@@ -256,6 +274,7 @@ function startGame() {
     currentPlayerIndex: 0,
     cardRow: [],
     selectedCards: [],
+    selectedFirstActionKey: null,
     finished: false,
   };
 
@@ -331,19 +350,82 @@ function render() {
       } else if (state.selectedCards.length < CARDS_PER_TURN) {
         state.selectedCards.push(card.id);
       }
+      state.selectedFirstActionKey = null;
       render();
     });
     ui.cardRow.append(button);
   });
 
   if (state.finished) {
+    ui.turnPlan.classList.add("hidden");
+    ui.turnPlan.innerHTML = "";
     ui.message.textContent = winningText();
     ui.confirmSelection.disabled = true;
     return;
   }
 
   const picks = selectedCards();
-  ui.confirmSelection.disabled = picks.length !== CARDS_PER_TURN || currentPlayer.isAI;
+  const turnActions = picks.length === CARDS_PER_TURN ? buildTurnActions(picks[0], picks[1]) : [];
+  if (turnActions.length === CARDS_PER_TURN && !turnActions.some((action) => action.key === state.selectedFirstActionKey)) {
+    state.selectedFirstActionKey = null;
+  }
+
+  ui.turnPlan.innerHTML = "";
+  if (turnActions.length === CARDS_PER_TURN) {
+    ui.turnPlan.classList.remove("hidden");
+    const secondActionKey =
+      state.selectedFirstActionKey && turnActions.find((action) => action.key !== state.selectedFirstActionKey)
+        ? turnActions.find((action) => action.key !== state.selectedFirstActionKey).key
+        : null;
+    turnActions.forEach((turnAction) => {
+      const isFirst = turnAction.key === state.selectedFirstActionKey;
+      const isSecond = turnAction.key === secondActionKey;
+      const dieIndex = findDieIndex(currentPlayer, turnAction.targetColor);
+      const dieValue = dieIndex >= 0 ? currentPlayer.dice[dieIndex].value : "?";
+
+      const item = document.createElement("div");
+      item.className = `turn-plan-item${isFirst ? " selected-first" : ""}`;
+
+      const top = document.createElement("div");
+      top.className = "turn-plan-top";
+      const orderLabel = document.createElement("strong");
+      orderLabel.textContent = isFirst ? "1st Action" : isSecond ? "2nd Action" : "Pick Order";
+      top.append(orderLabel);
+
+      if (!currentPlayer.isAI) {
+        const chooseButton = document.createElement("button");
+        chooseButton.type = "button";
+        chooseButton.className = "button turn-plan-button";
+        chooseButton.textContent = isFirst ? "Selected First" : "Do This First";
+        chooseButton.addEventListener("click", () => {
+          state.selectedFirstActionKey = turnAction.key;
+          render();
+        });
+        top.append(chooseButton);
+      }
+
+      const desc = document.createElement("div");
+      desc.className = "turn-plan-desc";
+      desc.textContent = `${turnAction.targetColor.toUpperCase()} die ${dieValue} \u2192 ${turnAction.action}`;
+      item.append(top, desc);
+      ui.turnPlan.append(item);
+    });
+  } else {
+    ui.turnPlan.classList.add("hidden");
+  }
+
+  ui.confirmSelection.disabled =
+    picks.length !== CARDS_PER_TURN || currentPlayer.isAI || !state.selectedFirstActionKey;
+
+  if (!currentPlayer.isAI) {
+    if (picks.length !== CARDS_PER_TURN) {
+      ui.message.textContent = `${currentPlayer.name}: pick two cards.`;
+    } else if (!state.selectedFirstActionKey) {
+      ui.message.textContent = `${currentPlayer.name}: choose which action happens first.`;
+    } else {
+      ui.message.textContent = `${currentPlayer.name}: confirm to apply this order.`;
+    }
+  }
 }
 
 ui.playerCount.addEventListener("change", renderPlayerConfig);
@@ -359,5 +441,7 @@ ui.newGame.addEventListener("click", () => {
 
 ui.confirmSelection.addEventListener("click", () => {
   const picks = selectedCards();
-  if (picks.length === CARDS_PER_TURN) runTurn(picks[0], picks[1]);
+  if (picks.length === CARDS_PER_TURN && state.selectedFirstActionKey) {
+    runTurn(picks[0], picks[1], state.selectedFirstActionKey);
+  }
 });
