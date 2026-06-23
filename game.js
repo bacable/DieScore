@@ -1,8 +1,8 @@
 const ACTIONS = ["Slide Right", "Slide Left", "Flip", "Reroll", "+1/-1"];
 const DEFAULT_COLORS = ["red", "yellow", "black", "white", "gray", "blue"];
+const COLOR_SETS = { standard: DEFAULT_COLORS };
 const LIGHT_DIE_TEXT_COLOR = "#111";
 const DARK_DIE_TEXT_COLOR = "#f7f9ff";
-const MAX_COLOR_NAME_LENGTH = 20;
 const AI_THINK_DELAY_MS = 600;
 const DIE_MIN_VALUE = 1;
 const DIE_MAX_VALUE = 6;
@@ -14,7 +14,7 @@ const ui = {
   setupView: document.getElementById("setup-view"),
   gameView: document.getElementById("game-view"),
   playerCount: document.getElementById("player-count"),
-  diceColors: document.getElementById("dice-colors"),
+  diceColorSet: document.getElementById("dice-color-set"),
   deckMultiplier: document.getElementById("deck-multiplier"),
   playerConfig: document.getElementById("player-config"),
   startGame: document.getElementById("start-game"),
@@ -36,7 +36,7 @@ for (let i = 3; i <= 6; i += 1) {
   ui.playerCount.append(option);
 }
 ui.playerCount.value = "3";
-ui.diceColors.value = DEFAULT_COLORS.join(", ");
+ui.diceColorSet.value = "standard";
 
 function randomDieValue() {
   return Math.floor(Math.random() * (DIE_MAX_VALUE - DIE_MIN_VALUE + 1)) + DIE_MIN_VALUE;
@@ -49,20 +49,6 @@ function shuffle(items) {
     [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
-}
-
-function parseColors(input) {
-  const parsed = input
-    .split(",")
-    .map((item) => normalizeColorToken(item.trim().toLowerCase()))
-    .filter(Boolean);
-  return parsed.length ? parsed : DEFAULT_COLORS;
-}
-
-function normalizeColorToken(value) {
-  if (new RegExp(`^[a-z]{1,${MAX_COLOR_NAME_LENGTH}}$`, "i").test(value)) return value;
-  if (/^#[0-9a-f]{3,8}$/i.test(value)) return value;
-  return "";
 }
 
 function getTextColorForBackground(color) {
@@ -243,7 +229,7 @@ function renderPlayerConfig() {
 
 function startGame() {
   const playerCount = Number(ui.playerCount.value);
-  const colors = parseColors(ui.diceColors.value);
+  const colors = COLOR_SETS[ui.diceColorSet.value] || DEFAULT_COLORS;
   const multiplier = Number(ui.deckMultiplier.value);
   const typeSelects = [...ui.playerConfig.querySelectorAll("select[data-player-type]")];
 

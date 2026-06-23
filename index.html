@@ -20,8 +20,10 @@
           <select id="player-count"></select>
         </label>
         <label>
-          Dice colors (comma-separated)
-          <input id="dice-colors" type="text" />
+          Dice color set
+          <select id="dice-color-set">
+            <option value="standard">Standard (red, yellow, black, white, gray, blue)</option>
+          </select>
         </label>
         <label>
           Deck size
@@ -50,6 +52,6 @@
       </section>
     </main>
 
-    <script type="module" src="./game.js"></script>
+    <script src="./game.js"></script>
   </body>
 </html>
