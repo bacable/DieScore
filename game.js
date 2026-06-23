@@ -45,9 +45,15 @@ function shuffle(items) {
 function parseColors(input) {
   const parsed = input
     .split(",")
-    .map((item) => item.trim().toLowerCase())
+    .map((item) => normalizeColorToken(item.trim().toLowerCase()))
     .filter(Boolean);
   return parsed.length ? parsed : DEFAULT_COLORS;
+}
+
+function normalizeColorToken(value) {
+  if (/^[a-z]{1,20}$/i.test(value)) return value;
+  if (/^#[0-9a-f]{3,8}$/i.test(value)) return value;
+  return "";
 }
 
 function createPlayer(id, isAI, colors) {
@@ -229,9 +235,14 @@ function startGame() {
   const typeSelects = [...ui.playerConfig.querySelectorAll("select[data-player-type]")];
 
   const rawDeck = generateDeck(colors, multiplier);
+  const minCardsForOneRound = 4 + playerCount * 2;
+  if (rawDeck.length < minCardsForOneRound) {
+    ui.message.textContent = "Not enough cards for the selected options.";
+    return;
+  }
   const turnsPerPlayer = Math.floor((rawDeck.length - 4) / (playerCount * 2));
-  const totalCardsNeeded = 4 + turnsPerPlayer * playerCount * 2;
-  const deck = rawDeck.slice(0, Math.max(4, totalCardsNeeded));
+  const totalCardsNeeded = 4 + Math.max(0, turnsPerPlayer) * playerCount * 2;
+  const deck = rawDeck.slice(0, totalCardsNeeded);
 
   const players = new Array(playerCount).fill(null).map((_, index) => {
     const isAI = typeSelects[index] && typeSelects[index].value === "ai";
@@ -281,16 +292,21 @@ function render() {
     row.className = "player-row";
     if (!state.finished && player.id === currentPlayer.id) row.classList.add("current");
     const score = scoreForPlayer(player);
-    row.innerHTML = `
-      <strong>#${index + 1} ${player.name} ${player.isAI ? "🤖" : "👤"}</strong>
-      <div class="dice">${player.dice
-        .map(
-          (die) =>
-            `<span class="die" style="background:${die.color};color:${die.color === "white" || die.color === "yellow" ? "#111" : "#f7f9ff"}">${die.value}</span>`
-        )
-        .join("")}</div>
-      <small>Score: ${score.toLocaleString()} • Trophies: 🥇 ${player.trophies.gold} 🥈 ${player.trophies.silver} 🥉 ${player.trophies.bronze} • Points: ${trophyPoints(player)}</small>
-    `;
+    const title = document.createElement("strong");
+    title.textContent = `#${index + 1} ${player.name} ${player.isAI ? "🤖" : "👤"}`;
+    const diceRow = document.createElement("div");
+    diceRow.className = "dice";
+    player.dice.forEach((die) => {
+      const dieElement = document.createElement("span");
+      dieElement.className = "die";
+      dieElement.style.backgroundColor = die.color;
+      dieElement.style.color = die.color === "white" || die.color === "yellow" ? "#111" : "#f7f9ff";
+      dieElement.textContent = String(die.value);
+      diceRow.append(dieElement);
+    });
+    const stats = document.createElement("small");
+    stats.textContent = `Score: ${score.toLocaleString()} • Trophies: 🥇 ${player.trophies.gold} 🥈 ${player.trophies.silver} 🥉 ${player.trophies.bronze} • Points: ${trophyPoints(player)}`;
+    row.append(title, diceRow, stats);
     ui.ranking.append(row);
   });
 
@@ -300,10 +316,15 @@ function render() {
     button.className = "card";
     if (state.selectedCards.includes(card.id)) button.classList.add("selected");
     button.type = "button";
-    button.innerHTML = `
-      <div class="card-top" style="background:${card.color};color:${card.color === "white" || card.color === "yellow" ? "#111" : "#f7f9ff"}">${card.color.toUpperCase()}</div>
-      <div class="card-bottom">${card.action}</div>
-    `;
+    const top = document.createElement("div");
+    top.className = "card-top";
+    top.style.backgroundColor = card.color;
+    top.style.color = card.color === "white" || card.color === "yellow" ? "#111" : "#f7f9ff";
+    top.textContent = card.color.toUpperCase();
+    const bottom = document.createElement("div");
+    bottom.className = "card-bottom";
+    bottom.textContent = card.action;
+    button.append(top, bottom);
     button.addEventListener("click", () => {
       if (state.finished || currentPlayer.isAI) return;
       if (state.selectedCards.includes(card.id)) {

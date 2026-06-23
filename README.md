@@ -16,4 +16,4 @@ Open `index.html` in a browser.
   - Gold (1st): 3 pts
   - Silver (2nd): 2 pts
   - Bronze (3rd): 1 pt
-- Deck can be Standard (60 cards) or Double (120 cards for testing).
+- Deck can be Standard (60 cards) or Double (120 cards for longer games).
