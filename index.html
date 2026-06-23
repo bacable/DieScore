@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DieScore</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="app-header">
+        <h1>DieScore</h1>
+        <p>Wordle-inspired dice strategy game</p>
+      </header>
+
+      <section id="setup-view" class="panel">
+        <h2>Settings</h2>
+        <label>
+          Players
+          <select id="player-count"></select>
+        </label>
+        <label>
+          Dice color set
+          <select id="dice-color-set">
+            <option value="standard">Standard (red, yellow, black, white, gray, blue)</option>
+          </select>
+        </label>
+        <label>
+          Deck size
+          <select id="deck-multiplier">
+            <option value="1">Standard (60 cards)</option>
+            <option value="2">Double (120 cards)</option>
+          </select>
+        </label>
+        <label>
+          Trophies per tier
+          <select id="trophy-supply">
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6" selected>6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+          </select>
+        </label>
+        <div id="player-config"></div>
+        <button id="start-game" class="button">Start Game</button>
+      </section>
+
+      <section id="game-view" class="panel hidden">
+        <div class="status">
+          <strong id="turn-label"></strong>
+          <span id="turn-meta"></span>
+        </div>
+        <div id="ranking" class="ranking"></div>
+        <h3>Card Row</h3>
+        <div id="card-row" class="card-row"></div>
+        <div id="turn-plan" class="turn-plan hidden"></div>
+        <div class="controls">
+          <button id="confirm-selection" class="button" disabled>Apply Selected Cards</button>
+          <button id="new-game" class="button secondary">Back to Settings</button>
+        </div>
+        <p id="message" class="message"></p>
+      </section>
+    </main>
+
+    <script src="./game.js"></script>
+  </body>
+</html>
