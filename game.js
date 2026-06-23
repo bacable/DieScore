@@ -4,6 +4,11 @@ const LIGHT_DIE_TEXT_COLOR = "#111";
 const DARK_DIE_TEXT_COLOR = "#f7f9ff";
 const MAX_COLOR_NAME_LENGTH = 20;
 const AI_THINK_DELAY_MS = 600;
+const DIE_MIN_VALUE = 1;
+const DIE_MAX_VALUE = 6;
+const DIE_OPPOSITE_SUM = 7;
+const CARD_ROW_SIZE = 4;
+const CARDS_PER_TURN = 2;
 
 const ui = {
   setupView: document.getElementById("setup-view"),
@@ -34,7 +39,7 @@ ui.playerCount.value = "3";
 ui.diceColors.value = DEFAULT_COLORS.join(", ");
 
 function randomDieValue() {
-  return Math.floor(Math.random() * 6) + 1;
+  return Math.floor(Math.random() * DIE_MAX_VALUE) + DIE_MIN_VALUE;
 }
 
 function shuffle(items) {
@@ -123,7 +128,7 @@ function applyAction(player, color, action) {
   }
 
   if (action === "Flip") {
-    player.dice[dieIndex].value = 7 - player.dice[dieIndex].value;
+    player.dice[dieIndex].value = DIE_OPPOSITE_SUM - player.dice[dieIndex].value;
     return;
   }
 
@@ -133,12 +138,12 @@ function applyAction(player, color, action) {
   }
 
   if (action === "+1/-1") {
-    player.dice[dieIndex].value = Math.min(6, player.dice[dieIndex].value + 1);
+    player.dice[dieIndex].value = Math.min(DIE_MAX_VALUE, player.dice[dieIndex].value + 1);
     state.players.forEach((otherPlayer) => {
       if (otherPlayer.id === player.id) return;
       const otherDieIndex = findDieIndex(otherPlayer, color);
       if (otherDieIndex >= 0) {
-        otherPlayer.dice[otherDieIndex].value = Math.max(1, otherPlayer.dice[otherDieIndex].value - 1);
+        otherPlayer.dice[otherDieIndex].value = Math.max(DIE_MIN_VALUE, otherPlayer.dice[otherDieIndex].value - 1);
       }
     });
   }
@@ -158,7 +163,7 @@ function removeSelectedCards() {
 }
 
 function refillCardRow() {
-  while (state.cardRow.length < 4 && state.deck.length > 0) {
+  while (state.cardRow.length < CARD_ROW_SIZE && state.deck.length > 0) {
     state.cardRow.push(state.deck.pop());
   }
 }
@@ -202,7 +207,7 @@ function maybeRunAiTurn() {
   ui.confirmSelection.disabled = true;
   setTimeout(() => {
     if (state.finished) return;
-    const picks = shuffle(state.cardRow).slice(0, 2);
+    const picks = shuffle(state.cardRow).slice(0, CARDS_PER_TURN);
     state.selectedCards = picks.map((card) => card.id);
     render();
     runTurn(picks[0], picks[1]);
@@ -239,13 +244,13 @@ function startGame() {
   const typeSelects = [...ui.playerConfig.querySelectorAll("select[data-player-type]")];
 
   const rawDeck = generateDeck(colors, multiplier);
-  const minCardsForOneRound = 4 + playerCount * 2;
+  const minCardsForOneRound = CARD_ROW_SIZE + playerCount * CARDS_PER_TURN;
   if (rawDeck.length < minCardsForOneRound) {
     ui.message.textContent = "Not enough cards for the selected options.";
     return;
   }
-  const turnsPerPlayer = Math.floor((rawDeck.length - 4) / (playerCount * 2));
-  const totalCardsNeeded = 4 + Math.max(0, turnsPerPlayer) * playerCount * 2;
+  const turnsPerPlayer = Math.floor((rawDeck.length - CARD_ROW_SIZE) / (playerCount * CARDS_PER_TURN));
+  const totalCardsNeeded = CARD_ROW_SIZE + Math.max(0, turnsPerPlayer) * playerCount * CARDS_PER_TURN;
   const deck = rawDeck.slice(0, totalCardsNeeded);
 
   const players = new Array(playerCount).fill(null).map((_, index) => {
@@ -333,7 +338,7 @@ function render() {
       if (state.finished || currentPlayer.isAI) return;
       if (state.selectedCards.includes(card.id)) {
         state.selectedCards = state.selectedCards.filter((id) => id !== card.id);
-      } else if (state.selectedCards.length < 2) {
+      } else if (state.selectedCards.length < CARDS_PER_TURN) {
         state.selectedCards.push(card.id);
       }
       render();
@@ -348,7 +353,7 @@ function render() {
   }
 
   const picks = selectedCards();
-  ui.confirmSelection.disabled = picks.length !== 2 || currentPlayer.isAI;
+  ui.confirmSelection.disabled = picks.length !== CARDS_PER_TURN || currentPlayer.isAI;
 }
 
 ui.playerCount.addEventListener("change", renderPlayerConfig);
@@ -364,5 +369,5 @@ ui.newGame.addEventListener("click", () => {
 
 ui.confirmSelection.addEventListener("click", () => {
   const picks = selectedCards();
-  if (picks.length === 2) runTurn(picks[0], picks[1]);
+  if (picks.length === CARDS_PER_TURN) runTurn(picks[0], picks[1]);
 });
