@@ -39,7 +39,7 @@ ui.playerCount.value = "3";
 ui.diceColors.value = DEFAULT_COLORS.join(", ");
 
 function randomDieValue() {
-  return Math.floor(Math.random() * DIE_MAX_VALUE) + DIE_MIN_VALUE;
+  return Math.floor(Math.random() * (DIE_MAX_VALUE - DIE_MIN_VALUE + 1)) + DIE_MIN_VALUE;
 }
 
 function shuffle(items) {
@@ -63,6 +63,10 @@ function normalizeColorToken(value) {
   if (new RegExp(`^[a-z]{1,${MAX_COLOR_NAME_LENGTH}}$`, "i").test(value)) return value;
   if (/^#[0-9a-f]{3,8}$/i.test(value)) return value;
   return "";
+}
+
+function getTextColorForBackground(color) {
+  return color === "white" || color === "yellow" ? LIGHT_DIE_TEXT_COLOR : DARK_DIE_TEXT_COLOR;
 }
 
 function createPlayer(id, isAI, colors) {
@@ -250,12 +254,12 @@ function startGame() {
     return;
   }
   const turnsPerPlayer = Math.floor((rawDeck.length - CARD_ROW_SIZE) / (playerCount * CARDS_PER_TURN));
-  const totalCardsNeeded = CARD_ROW_SIZE + Math.max(0, turnsPerPlayer) * playerCount * CARDS_PER_TURN;
+  const totalCardsNeeded = CARD_ROW_SIZE + turnsPerPlayer * playerCount * CARDS_PER_TURN;
   const deck = rawDeck.slice(0, totalCardsNeeded);
 
   const players = new Array(playerCount).fill(null).map((_, index) => {
-    const isAI = typeSelects[index] && typeSelects[index].value === "ai";
-    return createPlayer(index, Boolean(isAI), colors);
+    const isAI = typeSelects[index] ? typeSelects[index].value === "ai" : false;
+    return createPlayer(index, isAI, colors);
   });
 
   state = {
@@ -309,7 +313,7 @@ function render() {
       const dieElement = document.createElement("span");
       dieElement.className = "die";
       dieElement.style.backgroundColor = die.color;
-      dieElement.style.color = die.color === "white" || die.color === "yellow" ? LIGHT_DIE_TEXT_COLOR : DARK_DIE_TEXT_COLOR;
+      dieElement.style.color = getTextColorForBackground(die.color);
       dieElement.textContent = String(die.value);
       diceRow.append(dieElement);
     });
@@ -328,7 +332,7 @@ function render() {
     const top = document.createElement("div");
     top.className = "card-top";
     top.style.backgroundColor = card.color;
-    top.style.color = card.color === "white" || card.color === "yellow" ? LIGHT_DIE_TEXT_COLOR : DARK_DIE_TEXT_COLOR;
+    top.style.color = getTextColorForBackground(card.color);
     top.textContent = card.color.toUpperCase();
     const bottom = document.createElement("div");
     bottom.className = "card-bottom";
