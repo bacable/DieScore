@@ -9,6 +9,7 @@ const DIE_MAX_VALUE = 6;
 const DIE_OPPOSITE_SUM = 7;
 const CARD_ROW_SIZE = 4;
 const CARDS_PER_TURN = 2;
+const ACTION_PREVIEW_ARROW = "→";
 
 const ui = {
   setupView: document.getElementById("setup-view"),
@@ -172,13 +173,22 @@ function buildTurnActions(cardA, cardB) {
 }
 
 function orderedTurnActions(actions, firstActionKey) {
-  const firstAction = actions.find((action) => action.key === firstActionKey) || actions[0];
+  const firstAction = actions.find((action) => action.key === firstActionKey);
+  if (!firstAction) {
+    throw new Error("Invalid turn action order.");
+  }
   const secondAction = actions.find((action) => action.key !== firstAction.key);
   return secondAction ? [firstAction, secondAction] : [firstAction];
 }
 
 function isValidActionKey(actionKey, actions) {
   return actions.some((action) => action.key === actionKey);
+}
+
+function secondActionKey(firstActionKey, actions) {
+  if (!firstActionKey) return null;
+  const second = actions.find((action) => action.key !== firstActionKey);
+  return second ? second.key : null;
 }
 
 function runTurn(cardA, cardB, firstActionKey) {
@@ -377,12 +387,10 @@ function render() {
   ui.turnPlan.innerHTML = "";
   if (turnActions.length > 0) {
     ui.turnPlan.classList.remove("hidden");
-    const secondActionKey = state.selectedFirstActionKey
-      ? (turnActions.find((action) => action.key !== state.selectedFirstActionKey) || {}).key || null
-      : null;
+    const secondKey = secondActionKey(state.selectedFirstActionKey, turnActions);
     turnActions.forEach((turnAction) => {
       const isFirst = turnAction.key === state.selectedFirstActionKey;
-      const isSecond = turnAction.key === secondActionKey;
+      const isSecond = turnAction.key === secondKey;
       const dieIndex = findDieIndex(currentPlayer, turnAction.targetColor);
       const dieValue = dieIndex >= 0 ? currentPlayer.dice[dieIndex].value : "?";
 
@@ -409,7 +417,7 @@ function render() {
 
       const desc = document.createElement("div");
       desc.className = "turn-plan-desc";
-      desc.textContent = `${turnAction.targetColor.toUpperCase()} die ${dieValue} \u2192 ${turnAction.action}`;
+      desc.textContent = `${turnAction.targetColor.toUpperCase()} die ${dieValue} ${ACTION_PREVIEW_ARROW} ${turnAction.action}`;
       item.append(top, desc);
       ui.turnPlan.append(item);
     });
